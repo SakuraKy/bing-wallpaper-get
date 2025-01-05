@@ -18,9 +18,11 @@ console.log(
 
 const hbwgConfig = {};
 
+// hbwg_tempdir
 if (process.env.hbwg_tempdir) hbwgConfig.tempDir = process.env.hbwg_tempdir;
 else hbwgConfig.tempDir = `${process.cwd()}/tmp`;
 
+// check tempdir
 if (!fs.existsSync(hbwgConfig.tempDir)) {
   fs.mkdirSync(hbwgConfig.tempDir);
   fs.writeFileSync(`${hbwgConfig.tempDir}/.version.hbwg_cache`, VERSION);
@@ -72,12 +74,15 @@ const logerr = (err) =>
 const logwarn = (warn) =>
   console.warn(`[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] WARN: ${warn}`);
 
+// hbwg_port
 if (process.env.hbwg_port) hbwgConfig.port = Number(process.env.hbwg_port);
 else hbwgConfig.port = 3000;
 
+// hbwg_host
 if (process.env.hbwg_host) hbwgConfig.host = process.env.hbwg_host;
 else hbwgConfig.host = "https://cn.bing.com";
 
+// hbwg_config
 if (process.env.hbwg_config)
   hbwgConfig.api =
     hbwgConfig.host + "/HPImageArchive.aspx?" + process.env.hbwg_config;
@@ -85,11 +90,14 @@ else
   hbwgConfig.api =
     hbwgConfig.host + "/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=zh-CN";
 
+// hbwg_header
 if (process.env.hbwg_header) hbwgConfig.header = process.env.hbwg_header;
 else hbwgConfig.header = "x-forwarded-for";
 
+// 定时
 const rule = new schedule.RecurrenceRule();
 
+// 允许跨域
 app.all("*", function (req, res, next) {
   res.header("Access-Control-Allow-Origin", "*");
   res.header(
@@ -102,9 +110,11 @@ app.all("*", function (req, res, next) {
   else next();
 });
 
+// allow read message from post
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
+// Derived function
 module.exports = {
   getback,
   postback,
@@ -114,6 +124,7 @@ module.exports = {
   hbwgConfig,
 };
 
+// external.js
 /**
  * @param {string} path external.js path
  */
@@ -156,6 +167,7 @@ if (process.env.hbwg_external) LoadExternal(process.env.hbwg_external);
 else if (fs.existsSync("./external.js"))
   LoadExternal(`${process.cwd()}/external.js`);
 
+// 1.3.0 Version update prompt
 if (
   typeof hbwgConfig.external === "object" &&
   hbwgConfig.external.getupdate === false
@@ -192,6 +204,7 @@ if (hbwgConfig.getupdate !== false) {
     .then((result) => AfterGetVersion(result))
     .catch((error) => {
       logerr(`版本检查失败: ${error.message}`);
+      // 继续运行程序
     });
 }
 
@@ -208,6 +221,7 @@ if (
   rule.tz = "Asia/Shanghai";
 }
 
+// refreshtask
 if (
   typeof hbwgConfig.external === "object" &&
   hbwgConfig.external.refreshtask
@@ -249,6 +263,7 @@ const cacheimg = async () => {
     .then((result) => download(result));
 };
 
+// eslint-disable-next-line no-unused-vars
 const job = schedule.scheduleJob(rule, async function () {
   if (hbwgConfig.getupdate !== false) {
     const requestOptions = {
@@ -270,6 +285,7 @@ const job = schedule.scheduleJob(rule, async function () {
 
 cacheimg();
 
+// Load configuration file
 if (
   typeof hbwgConfig.external === "object" &&
   hbwgConfig.external.beforestart
@@ -278,6 +294,7 @@ if (
   hbwgConfig.external.beforestart(app, getback, postback, logback, logerr);
 }
 
+// api default configuration
 hbwgConfig.apiconfig = {
   getimage: "/getimage",
   gettitle: "/gettitle",
@@ -286,11 +303,13 @@ hbwgConfig.apiconfig = {
   bingsrc: false,
 };
 
+// api configuration
 if (
   typeof hbwgConfig.external === "object" &&
   typeof hbwgConfig.external.api === "object"
 ) {
   logback("The api configuration has been loaded.");
+  // rename
   if (typeof hbwgConfig.external.api.rename === "object") {
     if (typeof hbwgConfig.external.api.rename.getimage === "string")
       hbwgConfig.apiconfig.getimage = String(
@@ -305,6 +324,7 @@ if (
         hbwgConfig.external.api.rename.getcopyright
       );
   }
+  // ban
   if (Array.isArray(hbwgConfig.external.api.ban)) {
     for (let i = 0; i < hbwgConfig.external.api.ban.length; i++) {
       switch (hbwgConfig.external.api.ban[i]) {
@@ -322,12 +342,14 @@ if (
   }
 }
 
+// bing source config
 if (typeof hbwgConfig.external === "object" && hbwgConfig.external.bingsrc) {
   if (typeof hbwgConfig.external.bingsrc.url === "string")
     hbwgConfig.apiconfig.bingsrc = String(hbwgConfig.external.bingsrc.url);
   else hbwgConfig.apiconfig.bingsrc = "/bingsrc";
 } else hbwgConfig.apiconfig.bingsrc = false;
 
+// robots.txt
 if (typeof hbwgConfig.external === "object") {
   if (hbwgConfig.external.robots === false) hbwgConfig.robots = false;
   else if (typeof hbwgConfig.external.robots === "string")
@@ -358,6 +380,7 @@ if (
   hbwgConfig.rootprogram = hbwgConfig.external.rootprogram;
 }
 
+// 主程序
 app.get("/", (req, res) => {
   const ip = req.headers[hbwgConfig.header] || req.connection.remoteAddress;
   if (typeof hbwgConfig.rootprogram === "function") {
@@ -407,6 +430,7 @@ if (hbwgConfig.apiconfig.bingsrc) {
   });
 }
 
+// debug
 if (typeof hbwgConfig.external === "object") {
   if (hbwgConfig.external.debug) {
     logwarn("Debug Mode is enable!");
@@ -559,6 +583,7 @@ if (hbwgConfig.apiconfig.debug.url) {
   }
 }
 
+// delete external cache
 hbwgConfig.external = undefined;
 
 app.listen(hbwgConfig.port, () => {
